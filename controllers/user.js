@@ -2,13 +2,11 @@ const express = require("express");
 const router = express.Router();
 const { User } = require("../models/user");
 const bcrypt = require("bcrypt");
-const { auth } = require("../middlewares/auth");
 router.post("/", async (req, res) => {
   try {
     let user = new User(req.body);
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(user.password, salt);
-    console.log(user.password, "ff");
     const result = await user.save();
     res.send(result);
   } catch (e) {
@@ -29,7 +27,6 @@ router.post("/login", async (req, res) => {
         .status(400)
         .send({ status: false, msg: "Invalid username and password." });
     const token = user.generateAuthToken();
-    console.log("ddc");
     res
       .header("x-auth-token", token)
       .header("access-control-expose-headers", "x-auth-token")
@@ -38,7 +35,5 @@ router.post("/login", async (req, res) => {
     res.send({ error: e });
   }
 });
-router.get("/validateuser", auth, async (req, res) => {
-  res.send({ status: true, msg: "Validated" });
-});
+
 module.exports = router;

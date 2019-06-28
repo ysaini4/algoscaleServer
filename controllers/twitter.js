@@ -1,16 +1,30 @@
 const express = require("express");
-var Twit = require("twit");
+const Twit = require("twit");
 const { Twitter } = require("../models/twitter");
-var config = require("../utility/configTwitter");
+const { auth } = require("../middlewares/auth");
+const config = require("../utility/configTwitter");
+const { filterByDate } = require("../utility/common");
 const router = express.Router();
-router.post("/", async (req, res) => {
+router.post("/", auth, async (req, res) => {
   try {
-    var T = new Twit(config);
-    let search_key = req.body.search_key;
+    let { search_key, start_date, end_date } = req.body;
+    let checkDup = await Twitter.findOne({
+      search_key
+    }).lean();
+    if (checkDup) {
+      checkDup.search_data = filterByDate(
+        checkDup.search_data,
+        start_date,
+        end_date
+      );
+      res.send(checkDup);
+      return;
+    }
     var params = {
-      q: search_key,
+      q: `${search_key} since:${start_date}`,
       count: 100
     };
+    var T = new Twit(config);
     T.get("search/tweets", params, searchedData);
     async function searchedData(err, data, response) {
       try {
@@ -25,7 +39,15 @@ router.post("/", async (req, res) => {
           };
         });
         let twitter = new Twitter({ search_key, search_data });
-        const result = await twitter.save();
+
+        let result = await twitter.save();
+        if (result) {
+          result.search_data = filterByDate(
+            result.search_data,
+            start_date,
+            end_date
+          );
+        }
         res.send(result);
       } catch (e) {
         res.send({ error: e });
